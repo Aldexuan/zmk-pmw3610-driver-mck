@@ -689,10 +689,15 @@ static int pmw3610_pm_action(const struct device *dev, enum pm_device_action act
         .force_awake = DT_PROP(DT_DRV_INST(n), force_awake),                                       \
         .force_awake_4ms_mode = DT_PROP(DT_DRV_INST(n), force_awake_4ms_mode),                     \
     };                                                                                             \
-    // ====================== 修改点 2：添加 PM_DEVICE_DT_INST_DEFINE 绑定回调 ======================
-    PM_DEVICE_DT_INST_DEFINE(n, pmw3610_pm_action);                                                \
     // ====================== 修改点 3：将 PM_DEVICE_DT_INST_GET(n) 替换为 NULL ======================
-    DEVICE_DT_INST_DEFINE(n, pmw3610_init, NULL, &data##n, &config##n, POST_KERNEL,                \
+    DEVICE_DT_INST_DEFINE(n,                                                                       \
+                          pmw3610_init,                                                           \
+                          #if IS_ENABLED(CONFIG_PM_DEVICE)                                         \
+                          pmw3610_pm_action,                                                      \
+                          #else                                                                    \
+                          NULL,                                                                    \
+                          #endif                                                                   \
+                          &data##n, &config##n, POST_KERNEL,                                       \
                           CONFIG_INPUT_PMW3610_INIT_PRIORITY, &pmw3610_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(PMW3610_DEFINE)
