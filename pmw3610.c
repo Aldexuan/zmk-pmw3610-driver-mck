@@ -90,12 +90,12 @@ static int pmw3610_write(const struct device *dev, uint8_t reg, uint8_t val) {
     if (unlikely(err != 0)) {
         return err;
     }
-
+    
     pmw3610_write_reg(dev, PMW3610_REG_SPI_CLK_ON_REQ, PMW3610_SPI_CLOCK_CMD_DISABLE);
     return 0;
 }
 
-static int pmw3610_set_cpi(const struct device *dev, uint32_t cpi,
+static int pmw3610_set_cpi(const struct device *dev, uint32_t cpi, 
                            bool swap_xy, bool inv_x, bool inv_y) {
     /* Set resolution with CPI step of 200 cpi
      * 0x1: 200 cpi (minimum cpi)
@@ -124,7 +124,7 @@ static int pmw3610_set_cpi(const struct device *dev, uint32_t cpi,
     //   BIT 7: SWAP_XY
     //   BIT 6: INV_X
     //   BIT 5: INV_Y
-    LOG_INF("Setting axis swap_xy: %s inv_x: %s inv_y: %s",
+    LOG_INF("Setting axis swap_xy: %s inv_x: %s inv_y: %s", 
             swap_xy ? "yes" : "no", inv_x ? "yes" : "no", inv_y ? "yes" : "no");
 
 #if IS_ENABLED(CONFIG_PMW3610_ALT_SWAP_XY)
@@ -264,7 +264,7 @@ static int pmw3610_set_performance(const struct device *dev, bool enabled) {
         }
         LOG_INF("Get performance register (reg value 0x%x)", value);
 
-        // Set prefered RUN RATE
+        // Set prefered RUN RATE        
         //   BIT 3:   VEL_RUNRATE    0x0: 8ms; 0x1 4ms;
         //   BIT 2:   POSHI_RUN_RATE 0x0: 8ms; 0x1 4ms;
         //   BIT 1-0: POSLO_RUN_RATE 0x0: 8ms; 0x1 4ms; 0x2 2ms; 0x4 Reserved
@@ -456,7 +456,7 @@ static int pmw3610_report_data(const struct device *dev) {
     LOG_DBG("x/y: %d/%d", x, y);
 
 #ifdef CONFIG_PMW3610_ALT_SMART_ALGORITHM
-    int16_t shutter = ((int16_t)(buf[PMW3610_SHUTTER_H_POS] & 0x01) << 8)
+    int16_t shutter = ((int16_t)(buf[PMW3610_SHUTTER_H_POS] & 0x01) << 8) 
                     + buf[PMW3610_SHUTTER_L_POS];
     if (data->sw_smart_flag && shutter < 45) {
         pmw3610_write(dev, 0x32, 0x00);
@@ -649,27 +649,19 @@ static const struct sensor_driver_api pmw3610_driver_api = {
     .attr_set = pmw3610_alt_attr_set,
 };
 
-// ====================== 修改点 1：启用并完善 PM 回调函数 ======================
-#if IS_ENABLED(CONFIG_PM_DEVICE)
-static int pmw3610_pm_action(const struct device *dev, enum pm_device_action action) {
-    struct pixart_data *data = dev->data; // 新增：获取设备数据，判断初始化状态
-    switch (action) {
-    case PM_DEVICE_ACTION_SUSPEND:
-        LOG_INF("PMW3610 suspend: disable interrupt"); // 新增：日志便于调试
-        return pmw3610_set_interrupt(dev, false); // 睡眠时禁用中断（解决自动唤醒）
-    case PM_DEVICE_ACTION_RESUME:
-        LOG_INF("PMW3610 resume: enable interrupt"); // 新增：日志便于调试
-        // 唤醒时仅当设备初始化完成后启用中断，避免异常
-        if (data->ready) {
-            return pmw3610_set_interrupt(dev, true);
-        }
-        return 0;
-    default:
-        return -ENOTSUP;
-    }
-}
-#endif // IS_ENABLED(CONFIG_PM_DEVICE)
-// ============================================================================
+// #if IS_ENABLED(CONFIG_PM_DEVICE)
+// static int pmw3610_pm_action(const struct device *dev, enum pm_device_action action) {
+//     switch (action) {
+//     case PM_DEVICE_ACTION_SUSPEND:
+//         return pmw3610_set_interrupt(dev, false);
+//     case PM_DEVICE_ACTION_RESUME:
+//         return pmw3610_set_interrupt(dev, true);
+//     default:
+//         return -ENOTSUP;
+//     }
+// }
+// #endif // IS_ENABLED(CONFIG_PM_DEVICE)
+// PM_DEVICE_DT_INST_DEFINE(n, pmw3610_pm_action);
 
 #define PMW3610_SPI_MODE (SPI_OP_MODE_MASTER | SPI_WORD_SET(8) | SPI_MODE_CPOL | \
                         SPI_MODE_CPHA | SPI_TRANSFER_MSB)
@@ -689,15 +681,7 @@ static int pmw3610_pm_action(const struct device *dev, enum pm_device_action act
         .force_awake = DT_PROP(DT_DRV_INST(n), force_awake),                                       \
         .force_awake_4ms_mode = DT_PROP(DT_DRV_INST(n), force_awake_4ms_mode),                     \
     };                                                                                             \
-    // ====================== 修改点 3：将 PM_DEVICE_DT_INST_GET(n) 替换为 NULL ======================
-    DEVICE_DT_INST_DEFINE(n,                                                                       \
-                          pmw3610_init,                                                           \
-                          #if IS_ENABLED(CONFIG_PM_DEVICE)                                         \
-                          pmw3610_pm_action,                                                      \
-                          #else                                                                    \
-                          NULL,                                                                    \
-                          #endif                                                                   \
-                          &data##n, &config##n, POST_KERNEL,                                       \
+    DEVICE_DT_INST_DEFINE(n, pmw3610_init, PM_DEVICE_DT_INST_GET(n), &data##n, &config##n, POST_KERNEL,                \
                           CONFIG_INPUT_PMW3610_INIT_PRIORITY, &pmw3610_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(PMW3610_DEFINE)
